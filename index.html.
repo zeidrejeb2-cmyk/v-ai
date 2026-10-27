@@ -1,0 +1,250 @@
+
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#050810">
+<title>V — Personal AI</title>
+<style>
+:root {
+  --bg:#050810;
+  --panel:#0b1422;
+  --cyan:#56efff;
+  --purple:#b78aff;
+  --text:#e7faff;
+  --muted:#7f9bab;
+}
+* { box-sizing:border-box }
+body {
+  margin:0; min-height:100vh;
+  background:radial-gradient(ellipse at 50% 20%,#10233a 0%,var(--bg) 65%);
+  color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+main {
+  max-width:540px; margin:auto;
+  padding:calc(env(safe-area-inset-top) + 22px) 22px 30px;
+}
+header {
+  display:flex; align-items:center; justify-content:space-between;
+  border-bottom:1px solid #234154; padding-bottom:16px;
+}
+.logo { font-size:32px; font-weight:900; letter-spacing:5px; color:var(--cyan) }
+.tag { font-size:10px; letter-spacing:2px; color:var(--muted) }
+.status { color:#72ffc4; font-size:11px }
+h1 { font-size:27px; margin:30px 0 8px }
+p { line-height:1.55 }
+.muted { color:var(--muted); font-size:13px }
+.core {
+  width:190px; height:190px; margin:30px auto;
+  border-radius:50%; display:grid; place-items:center;
+  border:1px solid #398ca6;
+  background:radial-gradient(circle,#16344a,#091321 65%);
+  box-shadow:0 0 30px #22cfff22,inset 0 0 28px #22cfff18;
+  position:relative;
+}
+.core:before,.core:after {
+  content:""; position:absolute; border-radius:50%;
+  border:1px solid #56efff65;
+}
+.core:before { inset:12px; border-style:dashed; animation:spin 22s linear infinite }
+.core:after { inset:27px; border-color:#b78aff70 }
+.core span { font-size:53px; font-weight:900; color:var(--cyan); text-shadow:0 0 25px #56efff80 }
+@keyframes spin { to { transform:rotate(360deg) } }
+.core.active { box-shadow:0 0 50px #56efff60 }
+.panel {
+  background:#0b1422dd; border:1px solid #203b50;
+  padding:16px; margin:15px 0; border-radius:12px;
+}
+.label { font-size:10px; letter-spacing:2px; color:var(--cyan); margin-bottom:10px }
+#reply { min-height:46px; font-size:15px; white-space:pre-wrap }
+.controls { display:flex; gap:10px; margin-top:15px }
+button {
+  font:inherit; border-radius:8px; padding:14px 12px;
+  border:1px solid #32677b; background:#102436;
+  color:var(--text); cursor:pointer;
+}
+button:active { transform:scale(.98) }
+.primary { flex:1; background:var(--cyan); color:#031018; font-weight:800; border:0 }
+.secondary { background:#15132a; border-color:#66509b }
+button:disabled { opacity:.5 }
+input {
+  width:100%; background:#050b14; border:1px solid #29465a;
+  color:var(--text); padding:14px; border-radius:8px; font-size:16px;
+}
+#history { font-size:13px; color:#b9cfdb; max-height:180px; overflow:auto }
+.entry { border-bottom:1px solid #1b3040; padding:9px 0; white-space:pre-wrap; overflow-wrap:anywhere }
+footer { margin-top:25px; text-align:center; font-size:10px; letter-spacing:2px; color:#547181 }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <div class="logo">V<span style="color:var(--purple)">.</span></div>
+      <div class="tag">PERSONAL AI SYSTEM</div>
+    </div>
+    <div class="status">● SYSTEM ONLINE</div>
+  </header>
+
+  <h1>Benvenuto, V.</h1>
+  <p class="muted">La tua interfaccia. La tua voce. Il tuo mondo.</p>
+
+  <div class="core" id="core"><span>V</span></div>
+
+  <section class="panel">
+    <div class="label">RISPOSTA DEL SISTEMA</div>
+    <div id="reply" aria-live="polite">Sistema inizializzato. Sono pronto a ricevere i tuoi comandi.</div>
+    <div class="controls">
+      <button class="primary" id="talk">🎙 PARLA CON V</button>
+      <button class="secondary" id="stop">■ STOP VOCE</button>
+    </div>
+    <p class="muted" id="status">Premi il pulsante e autorizza il microfono se richiesto.</p>
+  </section>
+
+  <section class="panel">
+    <div class="label">COMANDO TESTUALE</div>
+    <form id="form">
+      <input id="command" placeholder="Scrivi un comando..." autocomplete="off">
+      <button class="primary" style="width:100%;margin-top:10px" type="submit">ESEGUI COMANDO</button>
+    </form>
+    <p class="muted">Prova: “ciao”, “che ore sono”, “che giorno è” oppure “aiuto”.</p>
+  </section>
+
+  <section class="panel">
+    <div class="label">REGISTRO ATTIVITÀ</div>
+    <div id="history">In attesa di input...</div>
+  </section>
+
+  <footer>V AI // NIGHT CITY INTERFACE // BUILD 001</footer>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const reply = $('reply');
+const status = $('status');
+const core = $('core');
+const historyBox = $('history');
+
+function log(who, text) {
+  if (historyBox.textContent === 'In attesa di input...')
+    historyBox.textContent = '';
+  const row = document.createElement('div');
+  row.className = 'entry';
+  row.textContent = who + ': ' + text;
+  historyBox.prepend(row);
+}
+
+function speak(text) {
+  if (!('speechSynthesis' in window)) {
+    status.textContent = 'Sintesi vocale non supportata da questo browser.';
+    return;
+  }
+  speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = 'it-IT';
+  utterance.rate = 1;
+  utterance.pitch = 0.92;
+  utterance.onstart = () => core.classList.add('active');
+  utterance.onend = () => core.classList.remove('active');
+  speechSynthesis.speak(utterance);
+}
+
+function respond(text) {
+  const q = text.trim().toLowerCase();
+  if (!q) return;
+
+  let answer;
+  if (/\bciao\b|\behi\b|\bsalve\b/.test(q)) {
+    answer = 'Ehi, V. Sistema operativo. Dimmi cosa ti serve.';
+  } else if (q.includes('che ore') || q.includes('orario')) {
+    answer = 'Ora locale: ' + new Date().toLocaleTimeString('it-IT',
+      {hour:'2-digit',minute:'2-digit'}) + '.';
+  } else if (q.includes('che giorno') || q.includes('data di oggi')) {
+    answer = 'Oggi è ' + new Date().toLocaleDateString('it-IT',
+      {weekday:'long',day:'numeric',month:'long',year:'numeric'}) + '.';
+  } else if (q.includes('come stai') || q.includes('come va')) {
+    answer = 'Tutti i sistemi disponibili sono operativi. E tu, come te la passi?';
+  } else if (q.includes('aiuto') || q.includes('cosa sai fare')) {
+    answer = 'Per ora posso salutarti, dirti l’ora e la data e rispondere a qualche comando di prova. L’intelligenza artificiale avanzata sarà il prossimo aggiornamento.';
+  } else if (q.includes('chi sei')) {
+    answer = 'Mi chiamo V. Sono il tuo prototipo di assistente personale cyberpunk.';
+  } else {
+    answer = 'Comando ricevuto, ma il mio modulo AI non è ancora collegato. Per capire richieste libere dovremo integrare un modello linguistico.';
+  }
+
+  reply.textContent = answer;
+  log('TU', text);
+  log('V', answer);
+  speak(answer);
+}
+
+const SpeechRecognition =
+  window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognition = null;
+let listening = false;
+
+if (SpeechRecognition) {
+  recognition = new SpeechRecognition();
+  recognition.lang = 'it-IT';
+  recognition.continuous = false;
+  recognition.interimResults = false;
+
+  recognition.onstart = () => {
+    listening = true;
+    status.textContent = 'V ti sta ascoltando...';
+    $('talk').textContent = '● TI ASCOLTO';
+    core.classList.add('active');
+  };
+  recognition.onresult = event => {
+    const text = event.results[0][0].transcript;
+    $('command').value = text;
+    respond(text);
+  };
+  recognition.onerror = event => {
+    status.textContent = 'Microfono: ' + event.error +
+      '. Puoi anche scrivere il comando.';
+  };
+  recognition.onend = () => {
+    listening = false;
+    $('talk').textContent = '🎙 PARLA CON V';
+    core.classList.remove('active');
+    if (status.textContent === 'V ti sta ascoltando...')
+      status.textContent = 'Ascolto terminato. Premi per parlare ancora.';
+  };
+} else {
+  status.textContent = 'Riconoscimento vocale non disponibile qui. Usa i comandi testuali.';
+  $('talk').disabled = true;
+}
+
+$('talk').addEventListener('click', () => {
+  if (!recognition) return;
+  if (listening) recognition.stop();
+  else {
+    try {
+      speechSynthesis?.cancel();
+      recognition.start();
+    } catch {
+      status.textContent = 'Attendi un momento e riprova ad avviare il microfono.';
+    }
+  }
+});
+
+$('stop').addEventListener('click', () => {
+  if (recognition && listening) recognition.stop();
+  if ('speechSynthesis' in window) speechSynthesis.cancel();
+  core.classList.remove('active');
+  status.textContent = 'Voce interrotta.';
+});
+
+$('form').addEventListener('submit', event => {
+  event.preventDefault();
+  respond($('command').value);
+  $('command').value = '';
+});
+
+if ('speechSynthesis' in window) speechSynthesis.getVoices();
+</script>
+</body>
+</html>
